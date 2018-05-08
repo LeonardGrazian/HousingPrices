@@ -1,3 +1,6 @@
 data/*
 output/*
+eda/__pycache__
+eda/Trash.py
 features.txt
+gameplan.txt
