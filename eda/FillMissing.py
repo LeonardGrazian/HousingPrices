@@ -55,38 +55,34 @@ cat_to_ord_maps = {
     'PoolQC':       {'None': 0, 'Fa': 1, 'Gd': 2, 'Ex': 3}
 }
 
+
+drop_list = ['BsmtHalfBath', '3SsnPorch', 'GarageQual', 'RoofMatl', 'PoolQC']
+
+
 def custom_fillna(X):
+    X = X.drop(columns=drop_list)
     for col in X.columns:
         if col in fillna_dict:
             X[col] = X[col].fillna(fillna_dict[col])
 
-        if col == 'LotFrontage':
+        elif col == 'LotFrontage':
             X[col] = X[col].fillna(13.83007039 + 0.58228893 * np.sqrt(X['LotArea']))
 
-        if col == 'GarageYrBlt':
+        elif col == 'GarageYrBlt':
             X[col] = X[col].fillna(X['YearBuilt'])
 
-        if np.any(pd.isna(X[col])):
+        if X[col].isnull().sum() > 0:
             if X[col].dtype == 'object':
                 X[col] = X[col].fillna('None')
             else:
-                X[col] = X[col].fillna(X[col].mode())
+                X[col] = X[col].fillna(0.0)
 
     return X
 
 
 def custom_get_categoricals(X, X_test):
-    categorical_cols = X_test.select_dtypes(include='object').columns
-    for cat_col in categorical_cols:
-        if cat_col in cat_to_ord_maps:
-            X[cat_col] = X[cat_col].replace(cat_to_ord_maps[cat_col])
-            X_test[cat_col] = X_test[cat_col].replace(cat_to_ord_maps[cat_col])
-        else:
-            all_categories = np.unique(
-                                np.append(np.unique(X[cat_col]),
-                                            np.unique(X_test[cat_col])) )
-            X[cat_col] = pd.Categorical(X[cat_col], categories=all_categories)
-            X_test[cat_col] = pd.Categorical(X_test[cat_col], categories=all_categories)
+    X, X_test = create_ordinals(X, X_test)
+    X, X_test = reconcile_categoricals(X, X_test)
     return X, X_test
 
 
@@ -100,18 +96,34 @@ def fill_na_by_type(X):
     return X
 
 
+def create_ordinals(X, X_test=[]):
+    categorical_cols = X.select_dtypes(include='object').columns
+    for cat_col in categorical_cols:
+        if cat_col in cat_to_ord_maps:
+            X[cat_col] = X[cat_col].replace(cat_to_ord_maps[cat_col])
+            if np.any(X_test):
+                X_test[cat_col] = X_test[cat_col].replace(cat_to_ord_maps[cat_col])
+    if np.any(X_test):
+        return X, X_test
+    else:
+        return X
+
+
 def reconcile_categoricals(X, X_test):
     # get cols from X_test in case target is categorical
-    categorical_cols = X_test.select_dtypes(include='object').columns
+    categorical_cols = X.select_dtypes(include='object').columns
     for cat_col in categorical_cols:
+        '''
         all_categories = np.unique(
                             np.append(np.unique(X[cat_col]),
                                         np.unique(X_test[cat_col])) )
+        '''
+        all_categories = np.unique(X[cat_col])
         X[cat_col] = pd.Categorical(X[cat_col], categories=all_categories)
         X_test[cat_col] = pd.Categorical(X_test[cat_col], categories=all_categories)
     return X, X_test
 
-    
+
 if __name__ == '__main__':
     root_dir = '/home/leonard/Desktop/Workspace/Kaggle/HousingPrices'
     train_data = pd.read_csv('{}/data/train.csv'.format(root_dir), index_col=0)

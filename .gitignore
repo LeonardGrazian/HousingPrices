@@ -1,5 +1,6 @@
 data/*
 output/*
+plots/histograms/*
 eda/__pycache__
 eda/Trash.py
 features.txt
